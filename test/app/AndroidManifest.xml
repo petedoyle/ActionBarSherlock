@@ -2,8 +2,8 @@
 
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
 	package="com.actionbarsherlock.tests.app"
-	android:versionCode="11"
-	android:versionName="3.1.1">
+	android:versionCode="25"
+	android:versionName="3.3.1">
 	
 	<uses-sdk
 		android:minSdkVersion="4"
@@ -19,11 +19,13 @@
 		<activity android:name=".Issue0002" />
 		<activity android:name=".Issue0030" />
 		<activity android:name=".Issue0031" />
+		<activity android:name=".Issue0033" />
 		<activity android:name=".Issue0035" />
 		<activity android:name=".Issue0036" />
 		<activity android:name=".Issue0038" />
 		<activity android:name=".Issue0038$InnerActivity" />
 		<activity android:name=".Issue0042" />
 		<activity android:name=".Issue0045" />
+		<activity android:name=".Issue0048" />
     </application>
 </manifest>

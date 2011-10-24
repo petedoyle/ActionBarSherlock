@@ -20,6 +20,8 @@ import android.support.v4.app.FragmentActivity;
 import android.support.v4.view.Menu;
 import android.support.v4.view.MenuItem;
 import android.support.v4.view.SubMenu;
+import android.widget.TextView;
+
 import com.actionbarsherlock.sample.demos.R;
 
 public class ActionBarSubMenus extends FragmentActivity {
@@ -50,6 +52,7 @@ public class ActionBarSubMenus extends FragmentActivity {
 	@Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        setContentView(R.layout.actionbar_submenus);
+        setContentView(R.layout.actionbar_text);
+        ((TextView)findViewById(R.id.text)).setText(R.string.actionbar_submenus_content);
     }
 }

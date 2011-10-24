@@ -22,8 +22,8 @@ import java.io.PrintWriter;
 import java.util.ArrayList;
 import java.util.HashMap;
 import com.actionbarsherlock.R;
-import com.actionbarsherlock.internal.app.ActionBarNativeImpl;
-import com.actionbarsherlock.internal.app.ActionBarSupportImpl;
+import com.actionbarsherlock.internal.app.ActionBarWrapper;
+import com.actionbarsherlock.internal.app.ActionBarImpl;
 import com.actionbarsherlock.internal.view.menu.MenuBuilder;
 import com.actionbarsherlock.internal.view.menu.MenuInflaterWrapper;
 import com.actionbarsherlock.internal.view.menu.MenuItemImpl;
@@ -75,9 +75,18 @@ import com.google.android.maps.MapActivity;
  * state, this may be a snapshot slightly before what the user last saw.</p>
  * </ul>
  */
-public class FragmentActivity extends Activity {
+public class FragmentActivity extends Activity implements SupportActivity {
     private static final String TAG = "FragmentActivity";
     private static final boolean DEBUG = false;
+
+    //The following are used so FragmentMapActivity gets the same resources WITHOUT inlining the values in its jar.
+    static int   R$layout$screen_action_bar_overlay = R.layout.abs__screen_action_bar_overlay;
+    static int   R$layout$screen_action_bar = R.layout.abs__screen_action_bar;
+    static int   R$layout$screen_simple = R.layout.abs__screen_simple;
+    static int   R$id$content = R.id.abs__content;
+    static int[] R$styleable$SherlockTheme = R.styleable.SherlockTheme;
+    static int   R$styleable$SherlockTheme_windowActionBar = R.styleable.SherlockTheme_windowActionBar;
+    static int   R$styleable$SherlockTheme_windowActionModeOverlay = R.styleable.SherlockTheme_windowActionModeOverlay;
 
     private static final String FRAGMENTS_TAG = "android:support:fragments";
 
@@ -91,6 +100,33 @@ public class FragmentActivity extends Activity {
     private static final int WINDOW_FLAG_ACTION_BAR_OVERLAY = 1 << Window.FEATURE_ACTION_BAR_OVERLAY;
     private static final int WINDOW_FLAG_ACTION_MODE_OVERLAY = 1 << Window.FEATURE_ACTION_MODE_OVERLAY;
     private static final int WINDOW_FLAG_INDETERMINANTE_PROGRESS = 1 << Window.FEATURE_INDETERMINATE_PROGRESS;
+
+    final SupportActivity.InternalCallbacks mInternalCallbacks = new SupportActivity.InternalCallbacks() {
+        @Override
+        void invalidateSupportFragmentIndex(int index) {
+            FragmentActivity.this.invalidateSupportFragmentIndex(index);
+        }
+
+        @Override
+        LoaderManagerImpl getLoaderManager(int index, boolean started, boolean create) {
+            return FragmentActivity.this.getLoaderManager(index, started, create);
+        }
+
+        @Override
+        Handler getHandler() {
+            return mHandler;
+        }
+
+        @Override
+        FragmentManagerImpl getFragments() {
+            return mFragments;
+        }
+
+        @Override
+        void ensureSupportActionBarAttached() {
+            FragmentActivity.this.ensureSupportActionBarAttached();
+        }
+    };
 
     final Handler mHandler = new Handler() {
         @Override
@@ -112,7 +148,7 @@ public class FragmentActivity extends Activity {
     };
     final FragmentManagerImpl mFragments = new FragmentManagerImpl();
 
-    final ActionBar mActionBar;
+    ActionBar mActionBar;
     boolean mIsActionBarImplAttached;
     long mWindowFlags = 0;
 
@@ -159,13 +195,22 @@ public class FragmentActivity extends Activity {
         super();
 
         if (IS_HONEYCOMB) {
-            mActionBar = ActionBarNativeImpl.createFor(this);
+            mActionBar = ActionBarWrapper.createFor(this);
             mSupportMenu = null; //Everything should be done natively
         } else {
-            mActionBar = new ActionBarSupportImpl(this);
             mSupportMenu = new MenuBuilder(this);
             mSupportMenu.setCallback(mSupportMenuCallback);
         }
+    }
+
+    @Override
+    public SupportActivity.InternalCallbacks getInternalCallbacks() {
+        return mInternalCallbacks;
+    }
+
+    @Override
+    public Activity asActivity() {
+        return this;
     }
 
     protected void ensureSupportActionBarAttached() {
@@ -173,33 +218,33 @@ public class FragmentActivity extends Activity {
             return;
         }
         if (!mIsActionBarImplAttached) {
-            //Do not allow an action bar if we have a parent activity
-            if (getParent() != null) {
+            if (isChild()) {
+                //Do not allow an action bar if we have a parent activity
                 mWindowFlags &= ~WINDOW_FLAG_ACTION_BAR;
             }
             if ((mWindowFlags & WINDOW_FLAG_ACTION_BAR) == WINDOW_FLAG_ACTION_BAR) {
                 if ((mWindowFlags & WINDOW_FLAG_ACTION_BAR_OVERLAY) == WINDOW_FLAG_ACTION_BAR_OVERLAY) {
-                    super.setContentView(R.layout.screen_action_bar_overlay);
+                    super.setContentView(R.layout.abs__screen_action_bar_overlay);
                 } else {
-                    super.setContentView(R.layout.screen_action_bar);
+                    super.setContentView(R.layout.abs__screen_action_bar);
                 }
 
-                final boolean actionBarEnabled = ((mWindowFlags & WINDOW_FLAG_ACTION_BAR_ITEM_TEXT) == WINDOW_FLAG_ACTION_BAR_ITEM_TEXT);
-                ((ActionBarSupportImpl)mActionBar).setWindowActionBarItemTextEnabled(actionBarEnabled);
-                final boolean indProgressEnabled = ((mWindowFlags & WINDOW_FLAG_INDETERMINANTE_PROGRESS) == WINDOW_FLAG_INDETERMINANTE_PROGRESS);
-                ((ActionBarSupportImpl)mActionBar).setWindowIndeterminateProgressEnabled(indProgressEnabled);
-                //TODO set other flags
+                mActionBar = new ActionBarImpl(this);
+                ((ActionBarImpl)mActionBar).init();
 
-                ((ActionBarSupportImpl)mActionBar).init();
+                final boolean textEnabled = ((mWindowFlags & WINDOW_FLAG_ACTION_BAR_ITEM_TEXT) == WINDOW_FLAG_ACTION_BAR_ITEM_TEXT);
+                mSupportMenu.setShowsActionItemText(textEnabled);
+
+                if ((mWindowFlags & WINDOW_FLAG_INDETERMINANTE_PROGRESS) == WINDOW_FLAG_INDETERMINANTE_PROGRESS) {
+                    ((ActionBarImpl)mActionBar).setProgressBarIndeterminateVisibility(false);
+                }
+
+                //TODO set other flags
             } else {
                 if ((mWindowFlags & WINDOW_FLAG_INDETERMINANTE_PROGRESS) == WINDOW_FLAG_INDETERMINANTE_PROGRESS) {
                     super.requestWindowFeature((int)Window.FEATURE_INDETERMINATE_PROGRESS);
                 }
-                if ((mWindowFlags & WINDOW_FLAG_ACTION_MODE_OVERLAY) == WINDOW_FLAG_ACTION_MODE_OVERLAY) {
-                    super.requestWindowFeature((int)Window.FEATURE_ACTION_MODE_OVERLAY);
-                }
-
-                super.setContentView(R.layout.screen_simple);
+                super.setContentView(R.layout.abs__screen_simple);
             }
 
             invalidateOptionsMenu();
@@ -219,6 +264,7 @@ public class FragmentActivity extends Activity {
      * @return Returns {@code true} if the requested feature is supported and
      * now enabled.
      */
+    @Override
     public boolean requestWindowFeature(long featureId) {
         if (!IS_HONEYCOMB) {
             switch ((int)featureId) {
@@ -246,7 +292,7 @@ public class FragmentActivity extends Activity {
         if (DEBUG) Log.d(TAG, "getMenuInflater(): Returning support inflater.");
 
         //Use our custom menu inflater
-        return new MenuInflater(this);
+        return new MenuInflater(this, super.getMenuInflater());
     }
 
     @Override
@@ -255,7 +301,7 @@ public class FragmentActivity extends Activity {
         if (IS_HONEYCOMB) {
             super.setContentView(layoutResId);
         } else {
-            FrameLayout contentView = (FrameLayout)findViewById(R.id.content);
+            FrameLayout contentView = (FrameLayout)findViewById(R.id.abs__content);
             contentView.removeAllViews();
             getLayoutInflater().inflate(layoutResId, contentView, true);
         }
@@ -267,7 +313,7 @@ public class FragmentActivity extends Activity {
         if (IS_HONEYCOMB) {
             super.setContentView(view, params);
         } else {
-            FrameLayout contentView = (FrameLayout)findViewById(R.id.content);
+            FrameLayout contentView = (FrameLayout)findViewById(R.id.abs__content);
             contentView.removeAllViews();
             contentView.addView(view, params);
         }
@@ -279,7 +325,7 @@ public class FragmentActivity extends Activity {
         if (IS_HONEYCOMB) {
             super.setContentView(view);
         } else {
-            FrameLayout contentView = (FrameLayout)findViewById(R.id.content);
+            FrameLayout contentView = (FrameLayout)findViewById(R.id.abs__content);
             contentView.removeAllViews();
             contentView.addView(view);
         }
@@ -287,19 +333,19 @@ public class FragmentActivity extends Activity {
 
     @Override
     public void setTitle(CharSequence title) {
-        if (IS_HONEYCOMB || (mActionBar.getPublicInstance() == null)) {
+        if (IS_HONEYCOMB || (getSupportActionBar() == null)) {
             super.setTitle(title);
         } else {
-            mActionBar.setTitle(title);
+            getSupportActionBar().setTitle(title);
         }
     }
 
     @Override
     public void setTitle(int titleId) {
-        if (IS_HONEYCOMB || (mActionBar.getPublicInstance() == null)) {
+        if (IS_HONEYCOMB || (getSupportActionBar() == null)) {
             super.setTitle(titleId);
         } else {
-            mActionBar.setTitle(titleId);
+            getSupportActionBar().setTitle(titleId);
         }
     }
 
@@ -320,8 +366,9 @@ public class FragmentActivity extends Activity {
             if (frag == null) {
                 Log.w(TAG, "Activity result no fragment exists for index: 0x"
                         + Integer.toHexString(requestCode));
+            } else {
+                frag.onActivityResult(requestCode&0xffff, resultCode, data);
             }
-            frag.onActivityResult(requestCode&0xffff, resultCode, data);
             return;
         }
 
@@ -346,6 +393,7 @@ public class FragmentActivity extends Activity {
      * Take care of popping the fragment back stack or finishing the activity
      * as appropriate.
      */
+    @Override
     public void onBackPressed() {
         if (!mFragments.popBackStackImmediate()) {
             finish();
@@ -408,6 +456,7 @@ public class FragmentActivity extends Activity {
      * @return You must return true for the menu to be displayed; if you return
      * false it will not be shown.
      */
+    @Override
     public boolean onCreateOptionsMenu(Menu menu) {
         if (DEBUG) Log.d(TAG, "onCreateOptionsMenu(Menu): Returning " + menu.hasVisibleItems());
         return menu.hasVisibleItems();
@@ -516,6 +565,7 @@ public class FragmentActivity extends Activity {
         return fragment.mView;
     }
 
+    @Override
     public void invalidateOptionsMenu() {
         if (DEBUG) Log.d(TAG, "supportInvalidateOptionsMenu(): Invalidating menu.");
 
@@ -527,11 +577,13 @@ public class FragmentActivity extends Activity {
             mOptionsMenuCreateResult  = onCreateOptionsMenu(mSupportMenu);
             mOptionsMenuCreateResult |= mFragments.dispatchCreateOptionsMenu(mSupportMenu, getMenuInflater());
 
-            //Since we now know we are using a custom action bar, perform the
-            //inflation callback to allow it to display any items it wants.
-            //Any items that were displayed will have a boolean toggled so that we
-            //do not display them on the options menu.
-            ((ActionBarSupportImpl)mActionBar).onMenuInflated(mSupportMenu);
+            if (getSupportActionBar() != null) {
+                //Since we now know we are using a custom action bar, perform the
+                //inflation callback to allow it to display any items it wants.
+                //Any items that were displayed will have a boolean toggled so that we
+                //do not display them on the options menu.
+                ((ActionBarImpl)mActionBar).onMenuInflated(mSupportMenu);
+            }
 
             // Whoops, older platform...  we'll use a hack, to manually rebuild
             // the options menu the next time it is prepared.
@@ -607,6 +659,7 @@ public class FragmentActivity extends Activity {
         }
     }
 
+    @Override
     public boolean onMenuItemSelected(int featureId, MenuItem item) {
         if (onOptionsItemSelected(item)) {
             return true;
@@ -624,6 +677,7 @@ public class FragmentActivity extends Activity {
         }
     }
 
+    @Override
     public boolean onOptionsItemSelected(MenuItem item) {
         return super.onOptionsItemSelected(item);
     }
@@ -642,9 +696,9 @@ public class FragmentActivity extends Activity {
             case Window.FEATURE_OPTIONS_PANEL:
                 mFragments.dispatchOptionsMenuClosed(menu);
 
-                if (!IS_HONEYCOMB) {
+                if (!IS_HONEYCOMB && (getSupportActionBar() != null)) {
                     if (DEBUG) Log.d(TAG, "onPanelClosed(int, android.view.Menu): Dispatch menu visibility false to custom action bar.");
-                    ((ActionBarSupportImpl)mActionBar).onMenuVisibilityChanged(false);
+                    ((ActionBarImpl)mActionBar).onMenuVisibilityChanged(false);
                 }
                 break;
         }
@@ -687,6 +741,7 @@ public class FragmentActivity extends Activity {
         mFragments.execPendingActions();
     }
 
+    @Override
     public boolean onPrepareOptionsMenu(Menu menu) {
         boolean result = menu.hasVisibleItems();
         if (DEBUG) Log.d(TAG, "onPrepareOptionsMenu(Menu): Returning " + result);
@@ -732,8 +787,10 @@ public class FragmentActivity extends Activity {
             }
 
             if (mOptionsMenuCreateResult && prepareResult && menu.hasVisibleItems()) {
-                if (DEBUG) Log.d(TAG, "onPrepareOptionsMenu(android.view.Menu): Dispatch menu visibility true to custom action bar.");
-                ((ActionBarSupportImpl)mActionBar).onMenuVisibilityChanged(true);
+                if (getSupportActionBar() != null) {
+                    if (DEBUG) Log.d(TAG, "onPrepareOptionsMenu(android.view.Menu): Dispatch menu visibility true to custom action bar.");
+                    ((ActionBarImpl)mActionBar).onMenuVisibilityChanged(true);
+                }
                 result = true;
             }
         } else {
@@ -756,6 +813,7 @@ public class FragmentActivity extends Activity {
      * configuration change -- the current instance will go through its
      * lifecycle to onDestroy() and a new instance then created after it.
      */
+    @Override
     public void recreate() {
         //This SUCKS! Figure out a way to call the super method and support Android 1.6
         /*
@@ -903,11 +961,12 @@ public class FragmentActivity extends Activity {
      *
      * @param visible Whether to show the progress bars in the title.
      */
+    @Override
     public void setProgressBarIndeterminateVisibility(Boolean visible) {
-        if (IS_HONEYCOMB) {
+        if (IS_HONEYCOMB || (getSupportActionBar() == null)) {
             super.setProgressBarIndeterminateVisibility(visible);
-        } else {
-            ((ActionBarSupportImpl)mActionBar).setProgressBarIndeterminateVisibility(visible);
+        } else if ((mWindowFlags & WINDOW_FLAG_INDETERMINANTE_PROGRESS) == WINDOW_FLAG_INDETERMINANTE_PROGRESS) {
+            ((ActionBarImpl)mActionBar).setProgressBarIndeterminateVisibility(visible);
         }
     }
 
@@ -925,6 +984,7 @@ public class FragmentActivity extends Activity {
      * closed for you after you return.
      * @param args additional arguments to the dump request.
      */
+    @Override
     public void dump(String prefix, FileDescriptor fd, PrintWriter writer, String[] args) {
         if (IS_HONEYCOMB) {
             //This can only work if we can call the super-class impl. :/
@@ -989,8 +1049,9 @@ public class FragmentActivity extends Activity {
      *
      * @return The handler for the appropriate action bar, or null.
      */
+    @Override
     public ActionBar getSupportActionBar() {
-        return mActionBar.getPublicInstance();
+        return (mActionBar != null) ? mActionBar.getPublicInstance() : null;
     }
 
     /**
@@ -1000,6 +1061,7 @@ public class FragmentActivity extends Activity {
      *
      * @param mode The action mode that just finished.
      */
+    @Override
     public void onActionModeFinished(ActionMode mode) {
     }
 
@@ -1010,6 +1072,7 @@ public class FragmentActivity extends Activity {
      *
      * @param mode The new action mode.
      */
+    @Override
     public void onActionModeStarted(ActionMode mode) {
     }
 
@@ -1026,6 +1089,7 @@ public class FragmentActivity extends Activity {
      * provide special handling for this action mode. (It will be handled by the
      * system.)
      */
+    @Override
     public ActionMode onWindowStartingActionMode(ActionMode.Callback callback) {
         return null;
     }
@@ -1038,6 +1102,7 @@ public class FragmentActivity extends Activity {
      * @return The ContextMode that was started, or null if it was cancelled
      * @see android.support.v4.view.ActionMode
      */
+    @Override
     public final ActionMode startActionMode(final ActionMode.Callback callback) {
         //Give the activity override a chance to handle the action mode
         ActionMode actionMode = onWindowStartingActionMode(callback);
@@ -1056,16 +1121,6 @@ public class FragmentActivity extends Activity {
         return actionMode;
     }
 
-    /**
-     * Get a special instance of {@link MenuItemImpl} which denotes the home
-     * item and should be invoked when the custom home button is clicked.
-     *
-     * @return Menu item instance.
-     */
-    final MenuItemImpl getHomeMenuItem() {
-        return mSupportMenu.addDetached(android.R.id.home);
-    }
-
     // ------------------------------------------------------------------------
     // FRAGMENT SUPPORT
     // ------------------------------------------------------------------------
@@ -1073,6 +1128,7 @@ public class FragmentActivity extends Activity {
     /**
      * Called when a fragment is attached to the activity.
      */
+    @Override
     public void onAttachFragment(Fragment fragment) {
     }
 
@@ -1080,6 +1136,7 @@ public class FragmentActivity extends Activity {
      * Return the FragmentManager for interacting with fragments associated
      * with this activity.
      */
+    @Override
     public FragmentManager getSupportFragmentManager() {
         return mFragments;
     }
@@ -1099,6 +1156,7 @@ public class FragmentActivity extends Activity {
     /**
      * Called by Fragment.startActivityForResult() to implement its behavior.
      */
+    @Override
     public void startActivityFromFragment(Fragment fragment, Intent intent,
             int requestCode) {
         if (requestCode == -1) {
@@ -1129,6 +1187,7 @@ public class FragmentActivity extends Activity {
     /**
      * Return the LoaderManager for this fragment, creating it if needed.
      */
+    @Override
     public LoaderManager getSupportLoaderManager() {
         if (mLoaderManager != null) {
             return mLoaderManager;

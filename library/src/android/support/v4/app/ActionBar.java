@@ -16,6 +16,7 @@
 
 package android.support.v4.app;
 
+import android.app.Activity;
 import android.content.Context;
 import android.graphics.drawable.Drawable;
 import android.support.v4.view.ActionMode;
@@ -24,7 +25,6 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.view.ViewGroup.MarginLayoutParams;
 import android.widget.SpinnerAdapter;
-import com.actionbarsherlock.internal.view.menu.MenuItemImpl;
 
 /**
  * This is the public interface to the contextual ActionBar. The ActionBar acts
@@ -34,25 +34,14 @@ import com.actionbarsherlock.internal.view.menu.MenuItemImpl;
  */
 public abstract class ActionBar {
     /** Parent activity. */
-    private final FragmentActivity mActivity;
+    protected final SupportActivity mActivity;
+    /** Parent context. */
+    protected final Context mContext;
 
 
-    protected ActionBar(FragmentActivity activity) {
+    protected <T extends Activity & SupportActivity> ActionBar(T activity) {
         mActivity = activity;
-    }
-
-
-    /**
-     * Get the parent activity.
-     *
-     * @return Activity.
-     */
-    protected final FragmentActivity getActivity() {
-        return mActivity;
-    }
-
-    protected final MenuItemImpl getHomeMenuItem() {
-        return mActivity.getHomeMenuItem();
+        mContext = activity;
     }
 
     /**
@@ -146,7 +135,7 @@ public abstract class ActionBar {
      * <p>Tabs manage the hiding and showing of
      * {@link android.support.v4.app.Fragment}.</p>
      */
-    public static interface Tab {
+    public static abstract class Tab {
         /**
          * An invalid position for a tab.
          *

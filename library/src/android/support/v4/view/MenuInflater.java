@@ -22,16 +22,15 @@ import java.lang.reflect.Constructor;
 import java.lang.reflect.Method;
 import org.xmlpull.v1.XmlPullParser;
 import org.xmlpull.v1.XmlPullParserException;
-import com.actionbarsherlock.internal.view.menu.MenuBuilder;
-import com.actionbarsherlock.internal.view.menu.MenuItemImpl;
-import com.actionbarsherlock.internal.view.menu.SubMenuBuilder;
 import android.content.Context;
 import android.content.res.XmlResourceParser;
 import android.util.AttributeSet;
 import android.util.Xml;
 import android.view.InflateException;
-import android.view.MenuItem;
 import android.view.View;
+import com.actionbarsherlock.internal.view.menu.MenuBuilder;
+import com.actionbarsherlock.internal.view.menu.MenuItemImpl;
+import com.actionbarsherlock.internal.view.menu.SubMenuBuilder;
 
 /**
  * This class is used to instantiate menu XML files into Menu objects.
@@ -44,7 +43,7 @@ import android.view.View;
  */
 public final class MenuInflater extends android.view.MenuInflater {
     private static final Class<?>[] ACTION_VIEW_CONSTRUCTOR_SIGNATURE = new Class[] { Context.class };
-    private static final Class<?>[] PARAM_TYPES = new Class[] { android.view.MenuItem.class };
+    private static final Class<?>[] PARAM_TYPES = new Class[] { android.support.v4.view.MenuItem.class };
 
     /** Android XML namespace. */
     private static final String XML_NS = "http://schemas.android.com/apk/res/android";
@@ -62,15 +61,19 @@ public final class MenuInflater extends android.view.MenuInflater {
     /** Context from which to inflate resources. */
     private final Context mContext;
 
+    /** Native inflater for context menu fallback. */
+    private final android.view.MenuInflater mNativeMenuInflater;
+
 
     /**
      * Constructs a menu inflater.
      *
      * @see Activity#getMenuInflater()
      */
-    public MenuInflater(Context context) {
+    public MenuInflater(Context context, android.view.MenuInflater nativeMenuInflater) {
         super(context);
-        this.mContext = context;
+        mContext = context;
+        mNativeMenuInflater = nativeMenuInflater;
     }
 
 
@@ -85,6 +88,11 @@ public final class MenuInflater extends android.view.MenuInflater {
      */
     @Override
     public void inflate(int menuRes, android.view.Menu menu) {
+        if (!(menu instanceof MenuBuilder)) {
+            mNativeMenuInflater.inflate(menuRes, menu);
+            return;
+        }
+
         MenuBuilder actionBarMenu = (MenuBuilder)menu;
         XmlResourceParser parser = null;
         try {
@@ -407,7 +415,7 @@ public final class MenuInflater extends android.view.MenuInflater {
 
         public void addItem() {
             itemAdded = true;
-            setItem(menu.add(groupId, itemId, itemCategoryOrder, itemTitle));
+            setItem((MenuItemImpl)menu.add(groupId, itemId, itemCategoryOrder, itemTitle));
         }
 
         public SubMenuBuilder addSubMenuItem() {
@@ -422,11 +430,11 @@ public final class MenuInflater extends android.view.MenuInflater {
         }
     }
 
-    class InflatedOnMenuItemClickListener implements android.view.MenuItem.OnMenuItemClickListener {
+    class InflatedOnMenuItemClickListener extends android.support.v4.view.MenuItem.OnMenuItemClickListener {
         private Method mMethod;
 
         public InflatedOnMenuItemClickListener(String methodName) {
-            final Class<?> localClass = MenuInflater.this.getClass();
+            final Class<?> localClass = mContext.getClass();
             try {
                 mMethod = localClass.getMethod(methodName, PARAM_TYPES);
             } catch (Exception e) {
@@ -444,7 +452,7 @@ public final class MenuInflater extends android.view.MenuInflater {
             final Object[] params = new Object[] { item };
             try {
                 if (mMethod.getReturnType() == Boolean.TYPE) {
-                    return (Boolean)mMethod.invoke(MenuInflater.this, params);
+                    return (Boolean)mMethod.invoke(mContext, params);
                 }
                 return false;
             } catch (Exception e) {

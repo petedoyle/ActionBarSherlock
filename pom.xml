@@ -6,7 +6,7 @@
 	<groupId>com.actionbarsherlock</groupId>
 	<artifactId>parent</artifactId>
 	<packaging>pom</packaging>
-	<version>3.1.1</version>
+	<version>3.3.1</version>
 
 	<name>ActionBarSherlock (Parent)</name>
 	<description>Android library for implementing the action bar design pattern using the native ActionBar on 3.0+ and a custom implementation on pre-3.0 all through the same API.</description>
@@ -15,6 +15,7 @@
 
 	<modules>
 		<module>library</module>
+		<module>plugins</module>
 		<module>samples</module>
 		<module>test</module>
 	</modules>
@@ -57,6 +58,21 @@
 			<name>JakeWharton.com Maven Repository</name>
 			<url>scp://r.jakewharton.com/home/jakewharton_repository/r.jakewharton.com/maven/snapshot/</url>
 		</snapshotRepository>
+		<site>
+			<id>github-project-site</id>
+			<name>GitHub Project Pages</name>
+			<url>gitsite:git@github.com/JakeWharton/ActionBarSherlock</url>
+			<!--
+			YOU MUST PUT THE FOLLOWING IN ~/.m2/settings.xml
+
+			<servers>
+				<server>
+					<id>github-project-site</id>
+					<username>git</username>
+				</server>
+			</servers>
+			-->
+		</site>
 	</distributionManagement>
 
 	<organization>
@@ -78,6 +94,7 @@
 		<java.version>1.6</java.version>
 		<android.version>3.2_r1</android.version>
 		<android.platform>13</android.platform>
+		<android.maps.version>13_r1</android.maps.version>
 	</properties>
 
 	<dependencyManagement>
@@ -86,6 +103,12 @@
 				<groupId>android</groupId>
 				<artifactId>android</artifactId>
 				<version>${android.version}</version>
+			</dependency>
+
+			<dependency>
+				<groupId>com.google.android.maps</groupId>
+				<artifactId>maps</artifactId>
+				<version>${android.maps.version}</version>
 			</dependency>
 		</dependencies>
 	</dependencyManagement>
@@ -111,8 +134,8 @@
 
 				<plugin>
 					<groupId>com.jayway.maven.plugins.android.generation2</groupId>
-					<artifactId>maven-android-plugin</artifactId>
-					<version>2.9.0-beta-5</version>
+					<artifactId>android-maven-plugin</artifactId>
+					<version>3.0.0-alpha-13</version>
 					<configuration>
 						<sdk>
 							<platform>${android.platform}</platform>
@@ -145,6 +168,18 @@
 
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-site-plugin</artifactId>
+				<version>2.2</version>
+				<inherited>false</inherited>
+				<configuration>
+					<generateProjectInfo>false</generateProjectInfo>
+					<generateReports>false</generateReports>
+					<siteDirectory>${basedir}/website</siteDirectory>
+				</configuration>
+			</plugin>
+
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-deploy-plugin</artifactId>
 				<version>2.6</version>
 				<dependencies>
@@ -156,5 +191,23 @@
 				</dependencies>
 			</plugin>
 		</plugins>
+
+		<extensions>
+			<extension>
+				<groupId>org.apache.maven.scm</groupId>
+				<artifactId>maven-scm-provider-gitexe</artifactId>
+				<version>1.4</version>
+			</extension>
+			<extension>
+				<groupId>org.apache.maven.scm</groupId>
+				<artifactId>maven-scm-manager-plexus</artifactId>
+				<version>1.4</version>
+			</extension>
+			<extension>
+				<groupId>org.kathrynhuxtable.maven.wagon</groupId>
+				<artifactId>wagon-gitsite</artifactId>
+				<version>0.3.1</version>
+			</extension>
+		</extensions>
 	</build>
 </project>
