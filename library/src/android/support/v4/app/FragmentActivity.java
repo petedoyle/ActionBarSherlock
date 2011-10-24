@@ -52,6 +52,8 @@ import android.view.View;
 import android.view.ViewGroup.LayoutParams;
 import android.widget.FrameLayout;
 
+import com.google.android.maps.MapActivity;
+
 /**
  * Base class for activities that want to use the support-based ActionBar,
  * Fragment, and Loader APIs.
