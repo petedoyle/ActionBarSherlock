@@ -2,18 +2,21 @@ package com.actionbarsherlock.internal.view.menu;
 
 import android.content.Intent;
 import android.graphics.drawable.Drawable;
-import android.view.View;
 import android.view.ContextMenu.ContextMenuInfo;
+import android.view.View;
 import com.actionbarsherlock.internal.view.ActionProviderWrapper;
+import com.actionbarsherlock.internal.widget.CollapsibleActionViewWrapper;
 import com.actionbarsherlock.view.ActionProvider;
+import com.actionbarsherlock.view.CollapsibleActionView;
 import com.actionbarsherlock.view.MenuItem;
 import com.actionbarsherlock.view.SubMenu;
 
-public class MenuItemWrapper implements MenuItem, android.view.MenuItem.OnMenuItemClickListener, android.view.MenuItem.OnActionExpandListener {
+public class MenuItemWrapper implements MenuItem, android.view.MenuItem.OnMenuItemClickListener {
     private final android.view.MenuItem mNativeItem;
     private SubMenu mSubMenu = null;
     private OnMenuItemClickListener mMenuItemClickListener = null;
     private OnActionExpandListener mActionExpandListener = null;
+    private android.view.MenuItem.OnActionExpandListener mNativeActionExpandListener = null;
 
 
     public MenuItemWrapper(android.view.MenuItem nativeItem) {
@@ -214,19 +217,35 @@ public class MenuItemWrapper implements MenuItem, android.view.MenuItem.OnMenuIt
 
     @Override
     public MenuItem setActionView(View view) {
+        if (view != null && view instanceof CollapsibleActionView) {
+            view = new CollapsibleActionViewWrapper(view);
+        }
         mNativeItem.setActionView(view);
         return this;
     }
 
     @Override
     public MenuItem setActionView(int resId) {
+        //Allow the native menu to inflate the resource
         mNativeItem.setActionView(resId);
+        if (resId != 0) {
+            //Get newly created view
+            View view = mNativeItem.getActionView();
+            if (view instanceof CollapsibleActionView) {
+                //Wrap it and re-set it
+                mNativeItem.setActionView(new CollapsibleActionViewWrapper(view));
+            }
+        }
         return this;
     }
 
     @Override
     public View getActionView() {
-        return mNativeItem.getActionView();
+        View actionView = mNativeItem.getActionView();
+        if (actionView instanceof CollapsibleActionViewWrapper) {
+            return ((CollapsibleActionViewWrapper)actionView).unwrap();
+        }
+        return actionView;
     }
 
     @Override
@@ -262,24 +281,30 @@ public class MenuItemWrapper implements MenuItem, android.view.MenuItem.OnMenuIt
     @Override
     public MenuItem setOnActionExpandListener(OnActionExpandListener listener) {
         mActionExpandListener = listener;
-        //Register ourselves as the listener to proxy
-        mNativeItem.setOnActionExpandListener(this);
+
+        if (mNativeActionExpandListener == null) {
+            mNativeActionExpandListener = new android.view.MenuItem.OnActionExpandListener() {
+                @Override
+                public boolean onMenuItemActionExpand(android.view.MenuItem menuItem) {
+                    if (mActionExpandListener != null) {
+                        return mActionExpandListener.onMenuItemActionExpand(MenuItemWrapper.this);
+                    }
+                    return false;
+                }
+
+                @Override
+                public boolean onMenuItemActionCollapse(android.view.MenuItem menuItem) {
+                    if (mActionExpandListener != null) {
+                        return mActionExpandListener.onMenuItemActionCollapse(MenuItemWrapper.this);
+                    }
+                    return false;
+                }
+            };
+
+            //Register our inner-class as the listener to proxy method calls
+            mNativeItem.setOnActionExpandListener(mNativeActionExpandListener);
+        }
+
         return this;
-    }
-
-    @Override
-    public boolean onMenuItemActionCollapse(android.view.MenuItem item) {
-        if (mActionExpandListener != null) {
-            return mActionExpandListener.onMenuItemActionCollapse(this);
-        }
-        return false;
-    }
-
-    @Override
-    public boolean onMenuItemActionExpand(android.view.MenuItem item) {
-        if (mActionExpandListener != null) {
-            return mActionExpandListener.onMenuItemActionExpand(this);
-        }
-        return false;
     }
 }

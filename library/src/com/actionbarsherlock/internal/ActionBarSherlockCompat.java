@@ -52,6 +52,7 @@ public class ActionBarSherlockCompat extends ActionBarSherlock implements MenuBu
     /** Window features which are enabled by default. */
     protected static final int DEFAULT_FEATURES = 0;
 
+    static private final String PANELS_TAG = "sherlock:Panels";
 
     public ActionBarSherlockCompat(Activity activity, int flags) {
         super(activity, flags);
@@ -79,6 +80,8 @@ public class ActionBarSherlockCompat extends ActionBarSherlock implements MenuBu
 
     /** Whether or not the title is stable and can be displayed. */
     private boolean mIsTitleReady = false;
+    /** Whether or not the parent activity has been destroyed. */
+    private boolean mIsDestroyed = false;
 
     /* Emulate PanelFeatureState */
     private boolean mClosingActionMenu;
@@ -289,7 +292,10 @@ public class ActionBarSherlockCompat extends ActionBarSherlock implements MenuBu
             return false;
         }
 
-        return wActionBar.hideOverflowMenu();
+        if (wActionBar != null) {
+            return wActionBar.hideOverflowMenu();
+        }
+        return false;
     }
 
     @Override
@@ -317,6 +323,10 @@ public class ActionBarSherlockCompat extends ActionBarSherlock implements MenuBu
     @Override
     public boolean dispatchPrepareOptionsMenu(android.view.Menu menu) {
         if (DEBUG) Log.d(TAG, "[dispatchPrepareOptionsMenu] android.view.Menu: " + menu);
+
+        if (mActionMode != null) {
+            return false;
+        }
 
         mMenuIsPrepared = false;
         if (!preparePanel()) {
@@ -407,7 +417,7 @@ public class ActionBarSherlockCompat extends ActionBarSherlock implements MenuBu
             }
 
             // Next collapse any expanded action views.
-            if (aActionBar != null && wActionBar.hasExpandedActionView()) {
+            if (wActionBar != null && wActionBar.hasExpandedActionView()) {
                 if (action == KeyEvent.ACTION_UP) {
                     wActionBar.collapseActionView();
                 }
@@ -416,22 +426,28 @@ public class ActionBarSherlockCompat extends ActionBarSherlock implements MenuBu
             }
         }
 
-        if (keyCode == KeyEvent.KEYCODE_MENU && event.getAction() == KeyEvent.ACTION_UP && isReservingOverflow()) {
-            if (mActionMode == null) {
-                if (wActionBar.isOverflowMenuShowing()) {
-                    wActionBar.hideOverflowMenu();
-                } else {
-                    wActionBar.showOverflowMenu();
-                }
-            }
-            if (DEBUG) Log.d(TAG, "[dispatchKeyEvent] returning true");
-            return true;
-        }
-
         if (DEBUG) Log.d(TAG, "[dispatchKeyEvent] returning false");
         return false;
     }
 
+    @Override
+    public void dispatchDestroy() {
+        mIsDestroyed = true;
+    }
+
+    @Override
+    public void dispatchSaveInstanceState(Bundle outState) {
+        if (mMenu != null) {
+            mMenuFrozenActionViewState = new Bundle();
+            mMenu.saveActionViewStates(mMenuFrozenActionViewState);
+        }
+        outState.putParcelable(PANELS_TAG, mMenuFrozenActionViewState);
+    }
+
+    @Override
+    public void dispatchRestoreInstanceState(Bundle savedInstanceState) {
+        mMenuFrozenActionViewState = savedInstanceState.getParcelable(PANELS_TAG);
+    }
 
     ///////////////////////////////////////////////////////////////////////////
     // Menu callback lifecycle and creation
@@ -964,7 +980,7 @@ public class ActionBarSherlockCompat extends ActionBarSherlock implements MenuBu
                         @Override
                         public void run() {
                             //Invalidate if the panel menu hasn't been created before this.
-                            if (mMenu == null) {
+                            if (!mIsDestroyed && !mActivity.isFinishing() && mMenu == null) {
                                 dispatchInvalidateOptionsMenu();
                             }
                         }

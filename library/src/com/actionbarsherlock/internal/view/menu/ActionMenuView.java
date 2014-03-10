@@ -417,9 +417,9 @@ public class ActionMenuView extends IcsLinearLayout implements MenuBuilder.ItemI
                 final int size = v.getMeasuredWidth() + p.leftMargin + p.rightMargin;
                 //UNUSED nonOverflowWidth += size;
                 widthRemaining -= size;
-                if (hasDividerBeforeChildAt(i)) {
+                //if (hasDividerBeforeChildAt(i)) {
                     //UNUSED nonOverflowWidth += dividerWidth;
-                }
+                //}
                 nonOverflowCount++;
             }
         }
@@ -520,6 +520,9 @@ public class ActionMenuView extends IcsLinearLayout implements MenuBuilder.ItemI
 
     //@Override
     protected boolean hasDividerBeforeChildAt(int childIndex) {
+        if (childIndex == 0) {
+            return false;
+        }
         final View childBefore = getChildAt(childIndex - 1);
         final View child = getChildAt(childIndex);
         boolean result = false;

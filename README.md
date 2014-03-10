@@ -19,8 +19,7 @@ and up.
 Try out the sample applications on the Android Market: [Feature Demos][4],
 [Fragments][5], and [RoboGuice][6].
 
-Continuous integration is provided by a CloudBees FOSS Jenkins instance at
-[jakewharton.ci.cloudbees.com][7].
+Continuous integration is provided by [Travis CI][7].
 
 
 
@@ -55,7 +54,7 @@ License
  [1]: http://android-developers.blogspot.com/2011/03/fragments-for-all.html
  [2]: http://developer.android.com/guide/topics/ui/actionbar.html
  [3]: http://actionbarsherlock.com/static/feature.png
- [4]: https://market.android.com/details?id=com.actionbarsherlock.sample.demos
- [5]: https://market.android.com/details?id=com.actionbarsherlock.sample.fragments
- [6]: https://market.android.com/details?id=com.actionbarsherlock.sample.roboguice
- [7]: http://jakewharton.ci.cloudbees.com/job/ActionBarSherlock/
+ [4]: https://play.google.com/store/apps/details?id=com.actionbarsherlock.sample.demos
+ [5]: https://play.google.com/store/apps/details?id=com.actionbarsherlock.sample.fragments
+ [6]: https://play.google.com/store/apps/details?id=com.actionbarsherlock.sample.roboguice
+ [7]: https://travis-ci.org/JakeWharton/ActionBarSherlock
